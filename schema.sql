@@ -191,8 +191,10 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('reels', 'reels', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
--- Enable RLS on storage objects
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- NOTE: RLS is enabled by default on storage.objects in Supabase.
+-- Running ALTER TABLE storage.objects causes permission errors (must be owner of table objects) 
+-- on newer Supabase instances. Therefore, we do not run it here.
+-- ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
 -- Drop storage policies if they exist to prevent duplicates
 DROP POLICY IF EXISTS "Public Uploads" ON storage.objects;
