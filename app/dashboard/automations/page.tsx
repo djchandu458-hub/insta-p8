@@ -5,7 +5,6 @@ import { useInstagramSession } from "@/hooks/use-instagram-session"
 import { AutomationList } from "@/components/dashboard/AutomationList"
 import { CreateRuleForm } from "@/components/dashboard/CreateRuleForm"
 import { MessageCircle, Send, Sparkles, Zap, Plus, Brain, Loader2 } from "lucide-react"
-import { IceBreakersManager } from "@/components/dashboard/IceBreakersManager"
 import type { Automation } from "@/lib/types"
 
 export default function AutomationsPage() {
@@ -227,12 +226,6 @@ export default function AutomationsPage() {
                     </div>
                 )}
 
-                {/* Ice Breakers (DM only) */}
-                {activeTab === 'dm' && (
-                    <div className="rounded-2xl border border-white/10 bg-[#0b0b0a] p-6">
-                        <IceBreakersManager />
-                    </div>
-                )}
 
                 {/* Automation List */}
                 {isLoading ? (

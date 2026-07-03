@@ -1,9 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import {
   Zap, MessageCircle, Sparkles, ArrowUpRight, Github, Star,
   Send, AtSign, Clapperboard, Brain, Inbox, Lock, Terminal,
+  Loader2,
 } from "lucide-react"
 
 const TELEGRAM_URL = "https://t.me/instagramautomationp8"
@@ -11,6 +13,7 @@ const GITHUB_URL = "https://github.com/ayuuxh2/insta-p8"
 
 export function LandingPage() {
   const [stars, setStars] = useState<number | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
     fetch("https://api.github.com/repos/ayuuxh2/insta-p8")
@@ -21,6 +24,12 @@ export function LandingPage() {
 
   const handleLogin = () => {
     window.location.href = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID}&redirect_uri=${process.env.NEXT_PUBLIC_INSTAGRAM_REDIRECT_URI}&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish%2Cinstagram_business_manage_insights`
+  }
+
+  const handleTestLogin = () => {
+    localStorage.setItem("ig_user_id", "9999999999")
+    localStorage.setItem("ig_username", "test_creator")
+    router.push("/dashboard")
   }
 
   return (
@@ -59,6 +68,14 @@ export function LandingPage() {
             <span className="hidden sm:inline">Star</span>
             {stars !== null && <span className="text-[#ffe14d]">{stars}</span>}
           </a>
+          {process.env.NODE_ENV === "development" && (
+            <button
+              onClick={handleTestLogin}
+              className="font-mono-ui text-xs font-bold text-[#ffe14d] border border-[#ffe14d]/30 rounded-full px-4 py-1.5 hover:bg-[#ffe14d]/10 transition-colors"
+            >
+              Dev Login
+            </button>
+          )}
           <button
             onClick={handleLogin}
             className="font-mono-ui text-xs font-bold bg-white text-black rounded-full px-4 py-1.5 hover:bg-[#ffe14d] transition-colors"
@@ -88,7 +105,7 @@ export function LandingPage() {
               Comment-to-DM funnels, keyword triggers, story reactions, AI replies, a live inbox,
               and Reels scheduling. The open-source ManyChat alternative — your data stays in your own Supabase.
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={handleLogin}
                 className="group flex items-center gap-2 bg-[#ffe14d] text-black font-mono-ui text-sm font-bold px-7 py-4 rounded-full hover:scale-[1.03] active:scale-[0.98] transition-transform"
@@ -96,6 +113,15 @@ export function LandingPage() {
                 Connect Instagram
                 <ArrowUpRight className="w-4 h-4 group-hover:rotate-45 transition-transform" />
               </button>
+              {process.env.NODE_ENV === "development" && (
+                <button
+                  onClick={handleTestLogin}
+                  className="group flex items-center gap-2 font-mono-ui text-sm font-bold text-[#ffe14d] border border-[#ffe14d]/25 px-7 py-4 rounded-full hover:bg-[#ffe14d]/10 active:scale-[0.98] transition-all"
+                >
+                  <Terminal className="w-4 h-4" />
+                  Dev Login
+                </button>
+              )}
               <a
                 href={TELEGRAM_URL} target="_blank" rel="noreferrer"
                 className="flex items-center gap-2 font-mono-ui text-sm text-neutral-300 border border-white/15 px-6 py-4 rounded-full hover:border-[#2AABEE]/60 hover:text-[#2AABEE] transition-colors"
