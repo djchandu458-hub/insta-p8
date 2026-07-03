@@ -440,6 +440,15 @@ Good first issues:
 
 ---
 
+## ❤️ Sponsors
+
+A huge thank you to our amazing sponsors for supporting this project!
+
+- [@Divypratap93](https://github.com/Divypratap93) — $10 🇬🇧
+
+---
+
+
 ## ⭐ Support
 
 If this project helps you avoid paying for expensive Instagram automation tools, please star the repo.
