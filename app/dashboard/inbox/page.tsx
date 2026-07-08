@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function InboxPage() {
-    const { userId, isLoading } = useInstagramSession()
+    const { isLoading } = useInstagramSession()
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
     const [selectedRecipientName, setSelectedRecipientName] = useState<string | null>(null)
     const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null)
@@ -27,10 +27,6 @@ export default function InboxPage() {
         )
     }
 
-    if (!userId) {
-        return null
-    }
-
     return (
         <div className="h-[calc(100vh-2rem)] rounded-2xl overflow-hidden border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl flex relative">
             {/* Left Sidebar: Conversation List */}
@@ -39,7 +35,6 @@ export default function InboxPage() {
                 selectedConversationId ? "-translate-x-full md:translate-x-0" : "translate-x-0"
             )}>
                 <ConversationList
-                    userId={userId}
                     selectedId={selectedConversationId}
                     onSelect={handleSelect}
                 />
@@ -54,7 +49,6 @@ export default function InboxPage() {
                     conversationId={selectedConversationId}
                     recipientName={selectedRecipientName}
                     recipientId={selectedRecipientId || undefined}
-                    userId={userId}
                     onBack={() => setSelectedConversationId(null)}
                 />
             </div>

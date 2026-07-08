@@ -1,18 +1,24 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase-server"
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     try {
-        const searchParams = request.nextUrl.searchParams
-        const userId = searchParams.get("userId")
-
-        if (!userId) return NextResponse.json({ error: "Missing userId" }, { status: 400 })
-
         const supabase = await getSupabaseServerClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+        const { data: accounts } = await supabase
+            .from("instagram_accounts")
+            .select("id")
+            .eq("user_id", user.id)
+
+        const accountIds = (accounts || []).map(a => a.id)
+        if (accountIds.length === 0) return NextResponse.json([])
+
         const { data, error } = await supabase
             .from("ice_breakers")
             .select("*")
-            .eq("user_id", userId)
+            .in("instagram_account_id", accountIds)
             .order("created_at", { ascending: true })
 
         if (error) throw error
@@ -27,27 +33,39 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
-        const { userId, iceBreakers } = body // Array of ice breakers
+        const { iceBreakers } = body // Array of ice breakers
 
-        if (!userId || !Array.isArray(iceBreakers)) {
+        if (!Array.isArray(iceBreakers)) {
             return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
         }
 
         const supabase = await getSupabaseServerClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-        // 1. Update Database (Replace all for simplicity or Upsert)
-        // Strategy: Delete all for user and re-insert. Simple and effective for limited list (max 4).
+        const { data: accounts } = await supabase
+            .from("instagram_accounts")
+            .select("id, access_token, page_id, ig_username")
+            .eq("user_id", user.id)
+
+        if (!accounts || accounts.length === 0) {
+            return NextResponse.json({ error: "No Instagram account linked" }, { status: 400 })
+        }
+
+        const igAccount = accounts[0]
+
+        // Delete all existing ice breakers for this account and re-insert
         const { error: deleteError } = await supabase
             .from("ice_breakers")
             .delete()
-            .eq("user_id", userId)
+            .eq("instagram_account_id", igAccount.id)
 
         if (deleteError) throw deleteError
 
         const { data: inserted, error: insertError } = await supabase
             .from("ice_breakers")
-            .insert(iceBreakers.map((ib: any) => ({
-                user_id: userId,
+            .insert(iceBreakers.map((ib: { question: string; response: string }) => ({
+                instagram_account_id: igAccount.id,
                 question: ib.question,
                 response: ib.response,
                 is_active: true
@@ -56,46 +74,24 @@ export async function POST(request: NextRequest) {
 
         if (insertError) throw insertError
 
-        // 2. Sync to Instagram
-        const { data: user } = await supabase.from("users").select("access_token, page_id").eq("id", userId).single()
-
-        if (user && user.access_token && user.page_id) {
-            // Construct IG Payload
-            const ice_breakers = inserted.map((ib: any) => ({
+        // Sync to Instagram
+        if (igAccount.access_token && igAccount.page_id) {
+            const ice_breakers = (inserted || []).map((ib: { id: string; question: string }) => ({
                 question: ib.question,
                 payload: `ICE_BREAKER_${ib.id}`
             }))
 
-            // We need to SAVE/MAP this payload to the response? 
-            // Actually, for simple text reply, we can handle the payload in webhook. 
-            // BUT, our current webhook looks for Keywords or Postbacks. 
-            // Let's assume standard behavior: User clicks question -> It sends the question as text? 
-            // No, Ice Breakers send a Postback payload usually. 
-            // IF we want to reply with the `response`, we need to map the payload to the response.
-            // Let's update the DB insert to include payload if possible, or just match by Question Text (easier for now).
-            // IG says: "When a person taps an ice breaker, your webhook receives a messaging_postbacks event."
-
-            // Wait, current DB schema doesn't have payload. 
-            // Let's use the 'question' as the trigger for now or rely on the fact that we just need to set them.
-            // Actually, keeping it simple: We set them on IG. When user clicks, we get a Postback.
-            // We need to know which response to send. 
-
-            const response = await fetch(
-                `https://graph.instagram.com/v21.0/me/messenger_profile?access_token=${user.access_token}`,
+            await fetch(
+                `https://graph.instagram.com/v21.0/me/messenger_profile?access_token=${igAccount.access_token}`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         ice_breakers: ice_breakers,
-                        platform: "instagram" // Important
+                        platform: "instagram"
                     })
                 }
             )
-            const igResult = await response.json()
-            if (igResult.error) {
-                console.error("IG Sync Error", igResult.error)
-                return NextResponse.json({ success: true, warning: "Saved to DB but IG Sync failed", error: igResult.error }, { status: 200 })
-            }
         }
 
         return NextResponse.json({ success: true, data: inserted })

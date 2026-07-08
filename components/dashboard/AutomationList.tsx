@@ -16,20 +16,20 @@ interface AutomationListProps {
   onDelete: (id: string) => void
   onEdit: (rule: Automation) => void
   onChanged: () => void
-  userId: string
 }
 
-export function AutomationList({ automations, onDelete, onEdit, onChanged, userId }: AutomationListProps) {
+export function AutomationList({ automations, onDelete, onEdit, onChanged }: AutomationListProps) {
   const [mediaMap, setMediaMap] = useState<Record<string, string>>({})
 
   const globalRules = automations.filter((rule) => !rule.specific_media_id)
   const postSpecificRules = automations.filter((rule) => rule.specific_media_id)
 
   useEffect(() => {
-    if (!userId || postSpecificRules.length === 0) return
+    if (postSpecificRules.length === 0) return
     const fetchMedia = async () => {
       try {
-        const res = await fetch(`/api/instagram/media?userId=${userId}`)
+        // Server derives user from session
+        const res = await fetch(`/api/instagram/media`)
         const data = await res.json()
         if (data.data && Array.isArray(data.data)) {
           const map: Record<string, string> = {}
@@ -39,7 +39,7 @@ export function AutomationList({ automations, onDelete, onEdit, onChanged, userI
       } catch (e) { console.error("Failed to load thumbnails", e) }
     }
     fetchMedia()
-  }, [userId, automations.length])
+  }, [automations.length])
 
   const handleToggle = async (rule: Automation, active: boolean) => {
     const res = await fetch("/api/automations", {

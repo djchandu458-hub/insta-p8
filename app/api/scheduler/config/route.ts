@@ -1,21 +1,26 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSupabaseServerClient } from "@/lib/supabase-server"
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     try {
-        const searchParams = request.nextUrl.searchParams
-        const userId = searchParams.get("userId")
-        if (!userId) return NextResponse.json({ error: "Missing userId" }, { status: 400 })
-
         const supabase = await getSupabaseServerClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+        const { data: accounts } = await supabase
+            .from("instagram_accounts")
+            .select("id")
+            .eq("user_id", user.id)
+
+        if (!accounts || accounts.length === 0) return NextResponse.json(null)
 
         const { data, error } = await supabase
             .from("scheduler_config")
             .select("*")
-            .eq("user_id", userId)
-            .single()
+            .eq("instagram_account_id", accounts[0].id)
+            .maybeSingle()
 
-        // Returns null data if not found, which is fine
+        if (error) throw error
         return NextResponse.json(data)
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 })
@@ -25,16 +30,22 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
-        const { userId, is_running, interval_minutes, start_time, end_time } = body
-
-        if (!userId) return NextResponse.json({ error: "Missing userId" }, { status: 400 })
+        const { is_running, interval_minutes, start_time, end_time } = body
 
         const supabase = await getSupabaseServerClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-        // Calculate initial next_run if enabling
-        // For simplicity, just set next_run to NOW() so it triggers immediately, 
-        // or keep existing logic.
-        const updates = {
+        const { data: accounts } = await supabase
+            .from("instagram_accounts")
+            .select("id")
+            .eq("user_id", user.id)
+
+        if (!accounts || accounts.length === 0) {
+            return NextResponse.json({ error: "No Instagram account linked" }, { status: 400 })
+        }
+
+        const updates: Record<string, unknown> = {
             is_running,
             interval_minutes,
             start_time,
@@ -44,12 +55,11 @@ export async function POST(request: NextRequest) {
 
         const { data, error } = await supabase
             .from("scheduler_config")
-            .upsert({ user_id: userId, ...updates }) // upsert on PK
+            .upsert({ instagram_account_id: accounts[0].id, ...updates })
             .select()
             .single()
 
         if (error) throw error
-
         return NextResponse.json(data)
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 })

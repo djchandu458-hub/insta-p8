@@ -4,27 +4,32 @@ import { getSupabaseServerClient } from "@/lib/supabase-server"
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
-        const { userId, recipientId, message, attachment } = body
+        const { recipientId, message, attachment } = body
 
-        if (!userId || !recipientId || (!message && !attachment)) {
+        if (!recipientId || (!message && !attachment)) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
         }
 
         const supabase = await getSupabaseServerClient()
 
-        // 1. Get User Access Token
-        const { data: user, error: userError } = await supabase
-            .from("users")
-            .select("access_token, username, business_account_id")
-            .eq("id", userId)
-            .single()
+        // 1. Get the authenticated user
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-        if (userError || !user) {
-            return NextResponse.json({ error: "User not found" }, { status: 404 })
+        // 2. Get the user's Instagram account (use primary/first for now)
+        const { data: igAccounts } = await supabase
+            .from("instagram_accounts")
+            .select("id, access_token, ig_username, business_account_id")
+            .eq("user_id", user.id)
+
+        if (!igAccounts || igAccounts.length === 0) {
+            return NextResponse.json({ error: "No Instagram account linked" }, { status: 400 })
         }
 
-        // 2. Prepare Payload for Instagram API
-        const apiBody: any = { recipient: { id: recipientId } }
+        const igAccount = igAccounts[0]
+
+        // 3. Prepare Payload for Instagram API
+        const apiBody: Record<string, unknown> = { recipient: { id: recipientId } }
 
         if (message) {
             apiBody.message = { text: message }
@@ -32,9 +37,9 @@ export async function POST(request: NextRequest) {
             apiBody.message = { attachment }
         }
 
-        // 3. Send to Instagram
+        // 4. Send to Instagram
         const res = await fetch(
-            `https://graph.instagram.com/v24.0/me/messages?access_token=${user.access_token}`,
+            `https://graph.instagram.com/v24.0/me/messages?access_token=${igAccount.access_token}`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -49,30 +54,25 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: data.error.message }, { status: 500 })
         }
 
-        // 4. Log to Database (Outbound Message)
-        // Find Conversation ID first
+        // 5. Log to Database (Outbound Message)
         let { data: conv } = await supabase
             .from("conversations")
             .select("id")
-            .eq("user_id", userId)
+            .eq("instagram_account_id", igAccount.id)
             .eq("recipient_id", recipientId)
             .single()
-
-        // If conversation doesn't exist (unlikely if replying, but possible if initiating), create it logic is tricky here 
-        // without knowing username. Assuming it exists for now as this is usually a reply flow.
 
         if (conv) {
             await supabase.from("messages").insert({
                 id: `mid_out_${Date.now()}_${Math.random()}`,
                 conversation_id: conv.id,
-                user_id: userId,
-                sender_id: user.business_account_id,
-                sender_username: user.username,
+                instagram_account_id: igAccount.id,
+                sender_id: String(igAccount.business_account_id || igAccount.id),
+                sender_username: igAccount.ig_username,
                 content: message || "[Attachment]",
                 is_from_instagram: false
             })
 
-            // Update conversation timestamp
             await supabase
                 .from("conversations")
                 .update({ last_message_at: new Date().toISOString() })

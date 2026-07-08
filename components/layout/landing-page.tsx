@@ -23,18 +23,20 @@ export function LandingPage() {
   }, [])
 
   const handleLogin = () => {
-    // Instagram Login with Facebook (Graph API) — the correct OAuth endpoint for
-    // Instagram Business / Creator accounts with business-level scopes.
-    // www.instagram.com/oauth/authorize is NOT a valid endpoint; it returns a
-    // "page not available" error because www.instagram.com does not serve /oauth/authorize.
-    // Meta's docs: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login
-    window.location.href = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID}&redirect_uri=${process.env.NEXT_PUBLIC_INSTAGRAM_REDIRECT_URI}&response_type=code&scope=instagram_business_basic%2Cinstagram_business_manage_messages%2Cinstagram_business_manage_comments%2Cinstagram_business_content_publish%2Cinstagram_business_manage_insights`
+    // Instagram OAuth authorize — Instagram Basic Display / Instagram Login API.
+    // Exchange at: https://api.instagram.com/oauth/access_token
+    // See: https://developers.facebook.com/docs/instagram-basic-display-api/overview
+    window.location.href = `https://www.instagram.com/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID}&redirect_uri=${process.env.NEXT_PUBLIC_INSTAGRAM_REDIRECT_URI}&scope=user_profile,user_media&response_type=code`
   }
 
   const handleTestLogin = () => {
-    localStorage.setItem("ig_user_id", "9999999999")
-    localStorage.setItem("ig_username", "test_creator")
-    router.push("/dashboard")
+    // Dev login: uses the POST /api/instagram/test-login endpoint which
+    // is only available in development mode
+    fetch("/api/instagram/test-login", { method: "POST" })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) router.push("/dashboard")
+      })
   }
 
   return (

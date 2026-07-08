@@ -4,13 +4,27 @@ import { getSupabaseServerClient } from "@/lib/supabase-server"
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
-        const { userId, videoUrl, caption, coverUrl } = body
+        const { videoUrl, caption, coverUrl } = body
 
-        if (!userId || !videoUrl) {
+        if (!videoUrl) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
         }
 
         const supabase = await getSupabaseServerClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+        const { data: accounts } = await supabase
+            .from("instagram_accounts")
+            .select("id")
+            .eq("user_id", user.id)
+
+        if (!accounts || accounts.length === 0) {
+            return NextResponse.json({ error: "No Instagram account linked" }, { status: 400 })
+        }
+
+        const igAccountId = accounts[0].id
+        const userId = user.id
 
         // 1. Download the Video from external URL (Instagram CDN)
         console.log(`[Import] Downloading video: ${videoUrl}`)
@@ -22,7 +36,6 @@ export async function POST(request: NextRequest) {
         const buffer = Buffer.from(arrayBuffer)
 
         // 2. Upload to Supabase Storage
-        // Generate unique filename
         const contentType = vidRes.headers.get("content-type") || "video/mp4"
         let fileExt = "mp4"
         if (contentType.includes("image/jpeg")) fileExt = "jpg"
@@ -48,22 +61,21 @@ export async function POST(request: NextRequest) {
             .getPublicUrl(fileName)
 
         // 3. Insert into Content Pool
-        // Get current max sequence
         const { data: maxContent } = await supabase
             .from("content_pool")
             .select("sequence_index")
-            .eq("user_id", userId)
+            .eq("instagram_account_id", igAccountId)
             .order("sequence_index", { ascending: false })
             .limit(1)
-            .single()
+            .maybeSingle()
 
         const nextSeq = (maxContent?.sequence_index || 0) + 1
 
         const { data: poolData, error: dbError } = await supabase
             .from("content_pool")
             .insert({
-                user_id: userId,
-                video_url: publicUrl, // The permanent Supabase URL
+                instagram_account_id: igAccountId,
+                video_url: publicUrl,
                 caption: caption || "",
                 sequence_index: nextSeq,
                 is_active: true,

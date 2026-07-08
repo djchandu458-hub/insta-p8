@@ -10,11 +10,10 @@ interface ChatWindowProps {
     conversationId: string | null
     recipientId?: string
     recipientName: string | null
-    userId: string
     onBack?: () => void
 }
 
-export function ChatWindow({ conversationId, recipientId, recipientName, userId, onBack }: ChatWindowProps) {
+export function ChatWindow({ conversationId, recipientId, recipientName, onBack }: ChatWindowProps) {
     const [messages, setMessages] = useState<Message[]>([])
     const [loading, setLoading] = useState(false)
     const [inputText, setInputText] = useState("")
@@ -44,21 +43,19 @@ export function ChatWindow({ conversationId, recipientId, recipientName, userId,
         fetchMessages()
     }, [conversationId])
 
-    // Fetch automations for quick reply
+    // Fetch automations for quick reply (server derives user from session)
     useEffect(() => {
-        if (userId) {
-            fetch(`/api/automations?userId=${userId}`).then(res => res.json()).then(data => {
-                if (Array.isArray(data)) setAutomations(data)
-            })
-        }
-    }, [userId])
+        fetch(`/api/automations`).then(res => res.json()).then(data => {
+            if (Array.isArray(data)) setAutomations(data)
+        })
+    }, [])
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" })
     }, [messages])
 
     const handleSendMessage = async (text: string = inputText) => {
-        if (!text.trim() || !recipientId || !userId) return
+        if (!text.trim() || !recipientId) return
 
         setSending(true)
         try {
@@ -66,7 +63,6 @@ export function ChatWindow({ conversationId, recipientId, recipientName, userId,
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    userId,
                     recipientId,
                     message: text
                 })
@@ -78,7 +74,7 @@ export function ChatWindow({ conversationId, recipientId, recipientName, userId,
                 const newMsg: Message = {
                     id: `temp_${Date.now()}`,
                     conversation_id: conversationId!,
-                    user_id: userId,
+                    user_id: "",
                     sender_id: "me",
                     sender_username: "Me",
                     content: text,

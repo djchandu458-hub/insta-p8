@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getSupabaseServerClient } from "@/lib/supabase-server"
+import { getSupabaseAdminClient } from "@/lib/supabase-server"
 
 export async function POST(request: NextRequest) {
     try {
@@ -9,37 +9,37 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        // 2. Parse JSON Body (Optimized for Vercel)
+        // 2. Parse JSON Body
         const body = await request.json()
-        const { videoUrl, caption, userId } = body
+        const { videoUrl, caption, instagramAccountId } = body
 
-        if (!videoUrl || !userId) {
-            return NextResponse.json({ error: "Missing videoUrl or userId" }, { status: 400 })
+        if (!videoUrl || !instagramAccountId) {
+            return NextResponse.json({ error: "Missing videoUrl or instagramAccountId" }, { status: 400 })
         }
 
-        const supabase = await getSupabaseServerClient()
+        const supabase = await getSupabaseAdminClient()
 
-        // 3. Fetch User Access Token (Verify user exists)
-        const { data: user, error: userError } = await supabase
-            .from("users")
+        // 3. Verify Instagram account exists
+        const { data: igAccount, error: userError } = await supabase
+            .from("instagram_accounts")
             .select("id")
-            .eq("id", userId)
+            .eq("id", instagramAccountId)
             .single()
 
-        if (userError || !user) {
-            return NextResponse.json({ error: "User not found" }, { status: 404 })
+        if (userError || !igAccount) {
+            return NextResponse.json({ error: "Instagram account not found" }, { status: 404 })
         }
 
-        // 4. Add to Content Pool (Scheduler Integration)
+        // 4. Add to Content Pool
 
-        // A. Get current max sequence to append to end
+        // A. Get current max sequence
         const { data: maxSeqData } = await supabase
             .from("content_pool")
             .select("sequence_index")
-            .eq("user_id", userId)
+            .eq("instagram_account_id", instagramAccountId)
             .order("sequence_index", { ascending: false })
             .limit(1)
-            .single()
+            .maybeSingle()
 
         const nextSequence = (maxSeqData?.sequence_index ?? 0) + 1
 
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         const { data: poolEntry, error: poolError } = await supabase
             .from("content_pool")
             .insert({
-                user_id: userId,
+                instagram_account_id: instagramAccountId,
                 video_url: videoUrl,
                 caption: caption || "",
                 sequence_index: nextSequence,
@@ -60,20 +60,20 @@ export async function POST(request: NextRequest) {
             throw new Error(`Pool Insert Failed: ${poolError.message}`)
         }
 
-        // C. Ensure Scheduler Config Exists (Auto-activate if missing)
+        // C. Ensure Scheduler Config Exists
         await supabase.from("scheduler_config")
             .upsert({
-                user_id: userId,
+                instagram_account_id: instagramAccountId,
                 is_running: true,
                 start_time: '09:00',
                 end_time: '23:00',
                 interval_minutes: 60,
                 current_sequence_index: 1
-            }, { onConflict: 'user_id', ignoreDuplicates: true })
+            }, { onConflict: 'instagram_account_id', ignoreDuplicates: true })
 
         return NextResponse.json({
             success: true,
-            message: "Video added to scheduler pool via URL",
+            message: "Video added to scheduler pool",
             poolId: poolEntry.id,
             sequenceIndex: nextSequence,
             videoUrl

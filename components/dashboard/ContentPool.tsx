@@ -34,11 +34,7 @@ interface ExternalMedia {
     media_type?: string
 }
 
-interface ContentPoolProps {
-    userId: string
-}
-
-export function ContentPool({ userId }: ContentPoolProps) {
+export function ContentPool() {
     const [items, setItems] = useState<ContentItem[]>([])
     const [loading, setLoading] = useState(true)
     const [uploading, setUploading] = useState(false)
@@ -71,13 +67,13 @@ export function ContentPool({ userId }: ContentPoolProps) {
     const [loadingSpy, setLoadingSpy] = useState(false)
 
     useEffect(() => {
-        if (userId) loadPool()
-    }, [userId])
+        loadPool()
+    }, [])
 
     const loadPool = async () => {
         try {
             setLoading(true)
-            const res = await fetch(`/api/scheduler/pool?userId=${userId}`)
+            const res = await fetch(`/api/scheduler/pool`)
             if (res.ok) {
                 const data = await res.json()
                 setItems(data)
@@ -92,8 +88,7 @@ export function ContentPool({ userId }: ContentPoolProps) {
     const loadInstagramMedia = async () => {
         try {
             setLoadingIg(true)
-            // Empty target params implies "me" in traditional endpoint, but standard endpoint handles "me"
-            const res = await fetch(`/api/instagram/media?userId=${userId}`)
+            const res = await fetch(`/api/instagram/media`)
             if (res.ok) {
                 const data = await res.json()
                 // FILTER: User only calls for Reels/Videos
@@ -114,7 +109,7 @@ export function ContentPool({ userId }: ContentPoolProps) {
         if (!spyTarget) return toast.error("Enter a username")
         try {
             setLoadingSpy(true)
-            let url = `/api/instagram/discovery?userId=${userId}&target=${spyTarget}&limit=${spyLimit}`
+            let url = `/api/instagram/discovery?target=${spyTarget}&limit=${spyLimit}`
             if (manualToken) {
                 // Encode the token just in case
                 url += `&customToken=${encodeURIComponent(manualToken.trim())}`
@@ -272,7 +267,7 @@ export function ContentPool({ userId }: ContentPoolProps) {
                     const res = await fetch('/api/scheduler/import-instagram', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ userId, videoUrl: item.video_url, caption: item.caption || caption })
+                        body: JSON.stringify({ videoUrl: item.video_url, caption: item.caption || caption })
                     })
                     if (res.ok) successCount++
                 }
@@ -297,7 +292,7 @@ export function ContentPool({ userId }: ContentPoolProps) {
                             const safeBlob = await processVideoSafe(finalVideoUrl)
 
                             // Upload Safe Blob to Supabase
-                            const fileName = `${userId}/remix_${Date.now()}_${i}.webm`
+                            const fileName = `remix_${Date.now()}_${i}.webm`
                             addLog("7. Uploading Remix to Cloud...")
 
                             const { error: uploadError } = await supabase.storage
@@ -325,7 +320,6 @@ export function ContentPool({ userId }: ContentPoolProps) {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            userId,
                             videoUrl: finalVideoUrl,
                             caption: caption || item.caption,
                             coverUrl: finalCoverUrl
@@ -345,7 +339,7 @@ export function ContentPool({ userId }: ContentPoolProps) {
                 const res = await fetch('/api/scheduler/import-instagram', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId, videoUrl: manualUrl, caption })
+                    body: JSON.stringify({ videoUrl: manualUrl, caption })
                 })
                 if (res.ok) {
                     toast.success("URL imported successfully")
@@ -364,7 +358,7 @@ export function ContentPool({ userId }: ContentPoolProps) {
                     setProgress(`Uploading ${i + 1}/${files.length}...`)
 
                     const fileExt = file.name.split('.').pop()
-                    const fileName = `${userId}/${Date.now()}-${i}.${fileExt}`
+                    const fileName = `${Date.now()}-${i}.${fileExt}`
 
                     const { error: uploadError } = await supabase.storage
                         .from('reels')
@@ -382,7 +376,7 @@ export function ContentPool({ userId }: ContentPoolProps) {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            userId,
+                            // userId derived from server session
                             video_url: publicUrl,
                             caption: finalCaption
                         })

@@ -11,7 +11,7 @@ export interface MobileNavProps {
     onLogout?: () => void
 }
 
-export function MobileNav({ username, onLogout }: MobileNavProps) {
+export function MobileNav({ username }: MobileNavProps) {
     const [open, setOpen] = useState(false)
 
     return (
@@ -25,7 +25,6 @@ export function MobileNav({ username, onLogout }: MobileNavProps) {
                 <Sidebar
                     className="h-full border-none bg-transparent"
                     username={username}
-                    onLogout={onLogout}
                     onNavigate={() => setOpen(false)}
                 />
             </SheetContent>

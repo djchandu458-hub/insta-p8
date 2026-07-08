@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useInstagramSession } from "@/hooks/use-instagram-session"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -10,14 +9,13 @@ import { toast } from "sonner"
 import type { IceBreaker } from "@/types/db"
 
 export function IceBreakersManager() {
-    const { userId, isLoading } = useInstagramSession()
     const [breakers, setBreakers] = useState<Partial<IceBreaker>[]>([])
     const [saving, setSaving] = useState(false)
     const [fetching, setFetching] = useState(true)
 
     useEffect(() => {
-        if (!userId) return
-        fetch(`/api/ice-breakers?userId=${userId}`)
+        // Server derives user from session
+        fetch(`/api/ice-breakers`)
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) setBreakers(data)
@@ -27,7 +25,7 @@ export function IceBreakersManager() {
                 console.error(err)
                 setFetching(false)
             })
-    }, [userId])
+    }, [])
 
     const handleAdd = () => {
         if (breakers.length >= 4) {
@@ -48,8 +46,6 @@ export function IceBreakersManager() {
     }
 
     const handleSave = async () => {
-        if (!userId) return
-
         // Validation
         if (breakers.some(b => !b.question?.trim() || !b.response?.trim())) {
             toast.error("Please fill in all fields")
@@ -61,11 +57,11 @@ export function IceBreakersManager() {
             const res = await fetch("/api/ice-breakers", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId, iceBreakers: breakers })
+                body: JSON.stringify({ iceBreakers: breakers })
             })
             const data = await res.json()
             if (data.success) {
-                toast.success("Ice Breakers saved & synced usually!")
+                toast.success("Ice Breakers saved & synced!")
             } else {
                 toast.error("Failed to save")
             }
@@ -76,7 +72,7 @@ export function IceBreakersManager() {
         }
     }
 
-    if (isLoading || fetching && !breakers.length) {
+    if (fetching && !breakers.length) {
         return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-purple-500" /></div>
     }
 

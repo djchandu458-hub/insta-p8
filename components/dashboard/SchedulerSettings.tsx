@@ -5,20 +5,15 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Calendar, Clock, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 
-interface SchedulerSettingsProps {
-    userId: string
-}
-
-export function SchedulerSettings({ userId }: SchedulerSettingsProps) {
+export function SchedulerSettings() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
 
     const [enabled, setEnabled] = useState(false)
-    const [interval, setInterval] = useState("240") // minutes
+    const [intervalMinutes, setIntervalMinutes] = useState("240")
     const [startTime, setStartTime] = useState("09:00")
     const [endTime, setEndTime] = useState("21:00")
 
@@ -27,18 +22,18 @@ export function SchedulerSettings({ userId }: SchedulerSettingsProps) {
     const [currentIndex, setCurrentIndex] = useState(1)
 
     useEffect(() => {
-        if (userId) loadSettings()
-    }, [userId])
+        loadSettings()
+    }, [])
 
     const loadSettings = async () => {
         try {
             setLoading(true)
-            const res = await fetch(`/api/scheduler/config?userId=${userId}`)
+            const res = await fetch(`/api/scheduler/config`)
             if (res.ok) {
                 const data = await res.json()
                 if (data) {
                     setEnabled(data.is_running)
-                    setInterval(data.interval_minutes.toString())
+                    setIntervalMinutes(data.interval_minutes.toString())
                     setStartTime(data.start_time || "09:00")
                     setEndTime(data.end_time || "21:00")
                     setNextRun(data.next_run_at)
@@ -59,9 +54,8 @@ export function SchedulerSettings({ userId }: SchedulerSettingsProps) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    userId,
                     is_running: enabled,
-                    interval_minutes: parseInt(interval),
+                    interval_minutes: parseInt(intervalMinutes),
                     start_time: startTime,
                     end_time: endTime
                 })
@@ -69,7 +63,7 @@ export function SchedulerSettings({ userId }: SchedulerSettingsProps) {
 
             if (res.ok) {
                 toast.success("Scheduler settings saved")
-                loadSettings() // reload to get calculated next_run
+                loadSettings()
             } else {
                 toast.error("Failed to save settings")
             }
@@ -111,14 +105,14 @@ export function SchedulerSettings({ userId }: SchedulerSettingsProps) {
                     <div className="flex gap-2">
                         <Input
                             type="number"
-                            value={parseInt(interval) / 60}
-                            onChange={(e) => setInterval((parseFloat(e.target.value) * 60).toString())}
+                            value={parseInt(intervalMinutes) / 60}
+                            onChange={(e) => setIntervalMinutes((parseFloat(e.target.value) * 60).toString())}
                             className="bg-black/20"
                         />
                         <div className="flex items-center text-neutral-400 text-sm">hours</div>
                     </div>
                     <p className="text-xs text-neutral-500">
-                        (Approx {interval} minutes)
+                        (Approx {intervalMinutes} minutes)
                     </p>
                 </div>
 

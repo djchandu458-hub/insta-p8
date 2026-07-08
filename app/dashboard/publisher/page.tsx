@@ -7,21 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2 } from "lucide-react"
 
 export default function PublisherPage() {
-    const { userId, isLoading } = useInstagramSession()
+    const { isLoading } = useInstagramSession()
 
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[50vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-white/20" />
-            </div>
-        )
-    }
-
-    if (!userId) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-4">
-                <h2 className="text-xl font-semibold text-white mb-2">Login Required</h2>
-                <p className="text-neutral-400">Please connect your Instagram account to access this feature.</p>
             </div>
         )
     }
@@ -39,12 +30,12 @@ export default function PublisherPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
-                    <ContentPool userId={userId} />
+                    <ContentPool />
                 </div>
 
                 <div className="lg:col-span-1">
                     <div className="sticky top-6">
-                        <SchedulerSettings userId={userId} />
+                        <SchedulerSettings />
 
                         <Card className="mt-6 bg-[#0b0b0a] border-white/10">
                             <CardHeader>

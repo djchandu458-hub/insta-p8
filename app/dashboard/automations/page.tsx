@@ -8,7 +8,7 @@ import { MessageCircle, Send, Sparkles, Zap, Plus, Brain, Loader2 } from "lucide
 import type { Automation } from "@/lib/types"
 
 export default function AutomationsPage() {
-    const { userId, isLoading: isSessionLoading } = useInstagramSession()
+    const { isLoading: isSessionLoading } = useInstagramSession()
     const [automations, setAutomations] = useState<Automation[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [activeTab, setActiveTab] = useState<'comment' | 'dm' | 'story'>('comment')
@@ -23,8 +23,8 @@ export default function AutomationsPage() {
     const [aiContextSaved, setAiContextSaved] = useState(false)
 
     useEffect(() => {
-        if (!userId) return
-        fetch(`/api/groq/auto-reply?userId=${userId}`)
+        // Server derives user from session — no userId param needed
+        fetch(`/api/groq/auto-reply`)
             .then(res => res.json())
             .then(data => {
                 setAiEnabled(data.enabled ?? false)
@@ -32,7 +32,7 @@ export default function AutomationsPage() {
             })
             .catch(() => {})
             .finally(() => setAiLoading(false))
-    }, [userId])
+    }, [])
 
     const handleSaveAiContext = async () => {
         if (aiContextSaving) return
@@ -41,7 +41,7 @@ export default function AutomationsPage() {
             await fetch("/api/groq/auto-reply", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId, enabled: aiEnabled, ai_context: aiContext }),
+                body: JSON.stringify({ enabled: aiEnabled, ai_context: aiContext }),
             })
             setAiContextSaved(true)
             setTimeout(() => setAiContextSaved(false), 2000)
@@ -57,7 +57,7 @@ export default function AutomationsPage() {
             const res = await fetch("/api/groq/auto-reply", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userId, enabled: newState }),
+                body: JSON.stringify({ enabled: newState }),
             })
             if (res.ok) setAiEnabled(newState)
         } catch {}
@@ -65,9 +65,8 @@ export default function AutomationsPage() {
     }
 
     const fetchAutomations = useCallback(async () => {
-        if (!userId) return
         try {
-            const res = await fetch(`/api/automations?userId=${userId}`)
+            const res = await fetch(`/api/automations`)
             const data = await res.json()
             if (res.ok) setAutomations(Array.isArray(data) ? data : [])
         } catch (err) {
@@ -75,11 +74,11 @@ export default function AutomationsPage() {
         } finally {
             setIsLoading(false)
         }
-    }, [userId])
+    }, [])
 
     useEffect(() => {
-        if (userId) fetchAutomations()
-    }, [userId, fetchAutomations])
+        fetchAutomations()
+    }, [fetchAutomations])
 
     const handleDeleteRule = async (id: string) => {
         await fetch(`/api/automations?id=${id}`, { method: "DELETE" })
@@ -92,7 +91,6 @@ export default function AutomationsPage() {
     }
 
     if (isSessionLoading) return <div className="h-screen flex items-center justify-center bg-black"><div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>
-    if (!userId) return <div className="h-screen flex items-center justify-center bg-black text-neutral-500">Please log in</div>
 
     const filteredAutomations = automations.filter(a => a.trigger_source === activeTab)
     const counts = {
@@ -117,7 +115,6 @@ export default function AutomationsPage() {
                         <h1 className="font-serif-display text-4xl md:text-5xl text-white leading-none">Automations</h1>
                     </div>
                     <div className="flex items-center gap-2">
-                        {/* AI Auto-Reply Toggle */}
                         {aiLoading ? (
                             <Loader2 className="w-4 h-4 text-neutral-500 animate-spin" />
                         ) : (
@@ -185,7 +182,7 @@ export default function AutomationsPage() {
                     </div>
                 )}
 
-                {/* Tabs — editorial underline */}
+                {/* Tabs */}
                 <div className="flex items-center gap-6 border-b border-white/10">
                     {tabs.map((tab) => (
                         <button
@@ -210,11 +207,10 @@ export default function AutomationsPage() {
                     ))}
                 </div>
 
-                {/* Create Form (Collapsible) */}
+                {/* Create Form */}
                 {showCreateForm && (
                     <div className="rounded-2xl border border-white/10 bg-[#0b0b0a] p-6 md:p-8 animate-in fade-in slide-in-from-top-2 duration-300">
                         <CreateRuleForm
-                            userId={userId}
                             triggerSource={editRule ? editRule.trigger_source : activeTab}
                             editRule={editRule}
                             onSuccess={() => {
@@ -225,7 +221,6 @@ export default function AutomationsPage() {
                         />
                     </div>
                 )}
-
 
                 {/* Automation List */}
                 {isLoading ? (
@@ -238,7 +233,6 @@ export default function AutomationsPage() {
                         onDelete={handleDeleteRule}
                         onEdit={handleEditRule}
                         onChanged={fetchAutomations}
-                        userId={userId}
                     />
                 )}
             </div>

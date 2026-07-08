@@ -20,7 +20,6 @@ import { toast } from "sonner"
    ============================================================ */
 
 interface CreateRuleFormProps {
-  userId: string
   triggerSource: "comment" | "dm" | "story"
   onSuccess: () => void
   editRule?: Automation | null
@@ -32,7 +31,7 @@ const STEPS = [
   { key: "settings", label: "Final Settings", sub: "Speed & restrictions" },
 ] as const
 
-export function CreateRuleForm({ userId, triggerSource, onSuccess, editRule }: CreateRuleFormProps) {
+export function CreateRuleForm({ triggerSource, onSuccess, editRule }: CreateRuleFormProps) {
   const isEditing = !!editRule
   const [step, setStep] = useState(0)
 
@@ -69,10 +68,9 @@ export function CreateRuleForm({ userId, triggerSource, onSuccess, editRule }: C
   const [loadingReels, setLoadingReels] = useState(false)
 
   useEffect(() => {
-    if (!userId) return
     let cancelled = false
     setLoadingReels(true)
-    fetch(`/api/instagram/media?userId=${userId}`)
+    fetch(`/api/instagram/media`)
       .then((r) => r.json())
       .then((j) => {
         if (cancelled) return
@@ -82,7 +80,7 @@ export function CreateRuleForm({ userId, triggerSource, onSuccess, editRule }: C
       .catch(() => {})
       .finally(() => !cancelled && setLoadingReels(false))
     return () => { cancelled = true }
-  }, [userId])
+  }, [])
 
   /* Prefill on edit */
   useEffect(() => {
@@ -225,7 +223,6 @@ export function CreateRuleForm({ userId, triggerSource, onSuccess, editRule }: C
     }
 
     const payload = {
-      userId,
       name,
       trigger_source: triggerSource,
       trigger_type: isReplyAll ? "reply_all" : triggerSource === "story" ? storyTriggerType : "keyword",
@@ -788,7 +785,7 @@ export function CreateRuleForm({ userId, triggerSource, onSuccess, editRule }: C
                     <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-neutral-950" />
                   </div>
                   <div className="leading-tight">
-                    <p className="text-[11px] font-semibold text-white truncate max-w-[100px]">@{userId ? "test_creator" : "creator"}</p>
+                    <p className="text-[11px] font-semibold text-white truncate max-w-[100px]">@creator</p>
                     <p className="text-[8px] text-green-500 font-medium">Active now</p>
                   </div>
                 </div>

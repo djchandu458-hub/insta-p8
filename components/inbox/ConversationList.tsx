@@ -6,21 +6,19 @@ import { cn } from "@/lib/utils"
 import type { Conversation } from "@/types/db"
 
 interface ConversationListProps {
-    userId: string
     selectedId: string | null
     onSelect: (id: string, username: string, recipientId: string) => void
 }
 
-export function ConversationList({ userId, selectedId, onSelect }: ConversationListProps) {
+export function ConversationList({ selectedId, onSelect }: ConversationListProps) {
     const [conversations, setConversations] = useState<Conversation[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        if (!userId) return
-
         const fetchConversations = async () => {
             try {
-                const res = await fetch(`/api/inbox/conversations?userId=${userId}`)
+                // Server derives user from session — no userId param needed
+                const res = await fetch(`/api/inbox/conversations`)
                 const data = await res.json()
                 if (Array.isArray(data)) {
                     setConversations(data)
@@ -33,7 +31,7 @@ export function ConversationList({ userId, selectedId, onSelect }: ConversationL
         }
 
         fetchConversations()
-    }, [userId])
+    }, [])
 
     if (loading) {
         return (

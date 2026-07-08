@@ -7,7 +7,8 @@ import {
   MessageSquare, Snowflake, Clapperboard, Send,
 } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser"
 
 const NAV = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
@@ -27,6 +28,17 @@ interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export function Sidebar({ className, username = "creator", onLogout, onNavigate, ...props }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    if (onLogout) {
+      onLogout()
+      return
+    }
+    const supabase = getSupabaseBrowserClient()
+    await supabase.auth.signOut()
+    router.push("/")
+  }
 
   return (
     <aside className={cn("flex flex-col bg-[#0a0a09]", className)} {...props}>
@@ -106,7 +118,7 @@ export function Sidebar({ className, username = "creator", onLogout, onNavigate,
             <p className="font-mono-ui text-[9px] uppercase tracking-wider text-neutral-600">connected</p>
           </div>
           <button
-            onClick={onLogout}
+            onClick={handleLogout}
             title="Log out"
             className="p-1.5 rounded-md text-neutral-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
           >

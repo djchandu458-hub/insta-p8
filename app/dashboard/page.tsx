@@ -23,16 +23,15 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
-    const { username, userId, isLoading: isSessionLoading } = useInstagramSession()
+    const { username, isLoading: isSessionLoading } = useInstagramSession()
     const [stats, setStats] = useState<DashboardStats | null>(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        if (!userId) return
-
         const fetchStats = async () => {
             try {
-                const res = await fetch(`/api/dashboard/stats?userId=${userId}`)
+                // Server derives user from session — no userId param needed
+                const res = await fetch("/api/dashboard/stats")
                 const data = await res.json()
                 if (data && !data.error) {
                     setStats(data)
@@ -45,7 +44,7 @@ export default function DashboardPage() {
         }
 
         fetchStats()
-    }, [userId])
+    }, [])
 
     if (isSessionLoading || loading) {
         return (
